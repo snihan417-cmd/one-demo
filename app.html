@@ -1,0 +1,1190 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Niko — Interactive 3D World</title>
+
+<style>
+:root {
+  --bg: #080712;
+  --panel: rgba(19, 17, 37, .78);
+  --pink: #ff36b7;
+  --purple: #9560ff;
+  --blue: #39baff;
+  --text: #f6f3ff;
+  --muted: #aaa6c8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+a, button {
+  color: inherit;
+  font: inherit;
+}
+
+a {
+  text-decoration: none;
+}
+
+button {
+  cursor: none;
+}
+
+::selection {
+  background: var(--pink);
+  color: white;
+}
+
+/* BACKGROUND */
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+  perspective: 900px;
+  background:
+    radial-gradient(ellipse at 65% 45%, #301044 0%, transparent 40%),
+    radial-gradient(ellipse at 15% 75%, #101e4d 0%, transparent 42%),
+    linear-gradient(140deg, #090711, #10091e 55%, #080b19);
+}
+
+.grid {
+  position: absolute;
+  left: -40%;
+  bottom: -37%;
+  width: 180%;
+  height: 90%;
+  background-image:
+    linear-gradient(rgba(90, 92, 255, .20) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 92, 255, .20) 1px, transparent 1px);
+  background-size: 55px 55px;
+  transform: perspective(400px) rotateX(58deg);
+  transform-origin: top center;
+  mask-image: linear-gradient(to bottom, transparent, black 35%, transparent);
+  animation: gridMove 10s linear infinite;
+}
+
+@keyframes gridMove {
+  to { background-position: 0 55px, 55px 0; }
+}
+
+.glow {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: .19;
+  pointer-events: none;
+  background: var(--purple);
+  left: 35%;
+  top: 20%;
+}
+
+.glow.two {
+  left: 72%;
+  top: 55%;
+  width: 230px;
+  height: 230px;
+  background: var(--pink);
+}
+
+/* CUSTOM DEPTH CURSOR */
+
+#cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  z-index: 9999;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+}
+
+.cursor-core {
+  position: absolute;
+  inset: 3px;
+  background: white;
+  box-shadow: 0 0 12px white, 0 0 30px var(--pink);
+  transform: rotate(45deg);
+}
+
+.cursor-ring {
+  position: absolute;
+  inset: -10px;
+  border: 1px solid var(--pink);
+  transform: rotate(45deg);
+  box-shadow: 0 0 12px #ff36b755;
+  transition: inset .18s ease;
+}
+
+.cursor-ring.second {
+  inset: -19px;
+  border-color: var(--blue);
+  opacity: .6;
+  transition: inset .3s ease;
+}
+
+body:has(a:hover) #cursor .cursor-ring {
+  inset: -17px;
+}
+
+body:has(a:hover) #cursor .cursor-ring.second {
+  inset: -27px;
+}
+
+.cursor-trail {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  z-index: 9990;
+  background: var(--pink);
+  box-shadow: 0 0 12px var(--pink);
+  transform: translate(-50%, -50%);
+  animation: pixelFade .65s forwards;
+}
+
+@keyframes pixelFade {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(90deg) scale(.1);
+  }
+}
+
+/* NAVIGATION */
+
+nav {
+  height: 88px;
+  padding: 0 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: 850;
+  letter-spacing: -1.5px;
+}
+
+.logo span {
+  color: var(--pink);
+}
+
+.nav-links {
+  display: flex;
+  gap: 34px;
+}
+
+.nav-links a {
+  color: var(--muted);
+  font-size: 14px;
+  transition: color .2s;
+}
+
+.nav-links a:hover {
+  color: var(--pink);
+}
+
+.nav-status {
+  font-size: 12px;
+  color: #a4ffd5;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-dot {
+  height: 7px;
+  width: 7px;
+  background: #5effb4;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #5effb4;
+}
+
+/* HERO */
+
+.hero {
+  min-height: calc(100vh - 88px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 25px;
+  max-width: 1350px;
+  margin: auto;
+  padding: 30px 7% 85px;
+  position: relative;
+}
+
+.intro {
+  position: relative;
+  z-index: 5;
+}
+
+.eyebrow {
+  color: var(--pink);
+  font-family: monospace;
+  font-size: 15px;
+  margin-bottom: 25px;
+}
+
+h1 {
+  font-size: clamp(48px, 6.5vw, 88px);
+  line-height: .99;
+  letter-spacing: -5px;
+  font-weight: 850;
+}
+
+.gradient-text {
+  background: linear-gradient(95deg, #ff47bb, #a67bff 65%, #45c6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.description {
+  color: #b7b4d0;
+  font-size: 17px;
+  line-height: 1.8;
+  max-width: 410px;
+  margin: 26px 0;
+}
+
+.tags {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+
+.tag {
+  padding: 9px 12px;
+  background: #ffffff08;
+  border: 1px solid #ffffff19;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #d8d4f1;
+  backdrop-filter: blur(10px);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  border: none;
+  padding: 15px 23px;
+  border-radius: 8px;
+  background: linear-gradient(100deg, #ff299e, #b53eff);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 8px 35px #db2fae30;
+  transition: transform .25s, box-shadow .25s;
+}
+
+.cta:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px #db2fae65;
+}
+
+/* CHARACTER AREA */
+
+.character-stage {
+  position: relative;
+  height: 520px;
+  display: grid;
+  place-items: center;
+  perspective: 1000px;
+}
+
+.orbit {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border: 1px solid #a75cff38;
+  border-radius: 50%;
+  transform: rotateX(65deg) rotateZ(-15deg);
+  box-shadow: 0 0 35px #9b4bff12;
+  animation: orbit 12s linear infinite;
+}
+
+.orbit.two {
+  width: 320px;
+  height: 320px;
+  border-color: #ff4fc02b;
+  animation-direction: reverse;
+  animation-duration: 9s;
+}
+
+@keyframes orbit {
+  to { transform: rotateX(65deg) rotateZ(345deg); }
+}
+
+.character {
+  width: 300px;
+  height: 375px;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: float 4s ease-in-out infinite;
+  transition: transform .18s ease-out;
+  filter: drop-shadow(0 25px 40px #0009);
+}
+
+@keyframes float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -12px; }
+}
+
+/* BODY AND HOODIE */
+
+.body-shape {
+  position: absolute;
+  bottom: -5px;
+  left: 7px;
+  width: 286px;
+  height: 177px;
+  border-radius: 130px 130px 25px 25px;
+  background: linear-gradient(135deg, #34264d, #151323 50%, #080a17);
+  border: 1px solid #7b62a533;
+  box-shadow: inset 10px 5px 30px #b28aff14;
+  z-index: 2;
+}
+
+.body-shape::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 68px;
+  width: 148px;
+  height: 100px;
+  border: 2px solid #78659b55;
+  border-radius: 50%;
+  border-bottom-color: transparent;
+  transform: rotateX(20deg);
+}
+
+.neck {
+  position: absolute;
+  bottom: 118px;
+  left: 118px;
+  width: 64px;
+  height: 77px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #9b5366, #f0a17e 50%, #bd6d71);
+  z-index: 3;
+}
+
+/* HEAD */
+
+.head {
+  position: absolute;
+  top: 40px;
+  left: 34px;
+  width: 232px;
+  height: 260px;
+  border-radius: 46% 46% 43% 43%;
+  background:
+    radial-gradient(ellipse at 50% 67%, #ffc0a2 0%, transparent 45%),
+    linear-gradient(110deg, #b86c77, #f2ad91 43%, #d78a83 80%, #9b4f68);
+  box-shadow:
+    inset -12px -10px 18px #8d3f5e55,
+    inset 9px 6px 14px #ffdfc433;
+  z-index: 4;
+  transform: translateZ(30px);
+}
+
+.ear {
+  position: absolute;
+  top: 135px;
+  width: 35px;
+  height: 55px;
+  border-radius: 50%;
+  background: #d78682;
+  z-index: 3;
+}
+
+.ear.left { left: 22px; }
+.ear.right { right: 22px; }
+
+/* HAIR */
+
+.hair {
+  position: absolute;
+  z-index: 8;
+  top: 22px;
+  left: 27px;
+  width: 245px;
+  height: 115px;
+  border-radius: 55% 50% 35% 25%;
+  background: linear-gradient(140deg, #1d1b32, #070711 60%, #29203e);
+  box-shadow: inset 12px 6px 12px #9c71bb20, 0 -7px 20px #b66cff12;
+  transform: rotate(-5deg) translateZ(43px);
+}
+
+.hair::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  width: 190px;
+  height: 65px;
+  background: linear-gradient(130deg, #353047, #100e1b 70%);
+  border-radius: 70% 40% 70% 20%;
+  transform: rotate(-10deg);
+}
+
+.hair::after {
+  content: "";
+  position: absolute;
+  top: 53px;
+  left: 12px;
+  width: 95px;
+  height: 95px;
+  background: linear-gradient(140deg, #242032, #080711);
+  border-radius: 10% 90% 20% 80%;
+  transform: rotate(22deg);
+}
+
+/* EYEBROWS */
+
+.brow {
+  position: absolute;
+  top: 94px;
+  width: 79px;
+  height: 17px;
+  background: #30202a;
+  border-radius: 100% 100% 25% 25%;
+  z-index: 9;
+}
+
+.brow.left {
+  left: 27px;
+  transform: rotate(-9deg);
+}
+
+.brow.right {
+  right: 27px;
+  transform: rotate(9deg);
+}
+
+/* DETAILED EYES */
+
+.eye {
+  position: absolute;
+  top: 117px;
+  width: 82px;
+  height: 62px;
+  background: linear-gradient(180deg, #ffffff, #e8e6f4);
+  border: 3px solid #4a3544;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow:
+    inset 0 -4px 7px #6b597f2e,
+    0 2px 4px #0003;
+}
+
+.eye.left { left: 22px; }
+.eye.right { right: 22px; }
+
+.iris {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 39px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 27%, #a9e5ff 0 4%, transparent 6%),
+    repeating-conic-gradient(from 0deg, #55bfff 0deg 8deg, #2868c8 9deg 16deg, #18316c 17deg 24deg);
+  border: 3px solid #14203e;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px #3a9dff66;
+  will-change: left, top;
+}
+
+.pupil {
+  position: absolute;
+  width: 18px;
+  height: 22px;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 25%, #263a67, #03040c 65%);
+}
+
+.eye-shine {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  left: 6px;
+  top: 5px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 5px #fff;
+}
+
+.eye-shine.small {
+  width: 5px;
+  height: 5px;
+  left: 22px;
+  top: 22px;
+}
+
+.nose {
+  position: absolute;
+  left: 50%;
+  top: 164px;
+  width: 24px;
+  height: 31px;
+  border-radius: 50%;
+  border-right: 3px solid #a85f69;
+  border-bottom: 3px solid #b56870;
+  transform: translateX(-50%) rotate(8deg);
+  z-index: 11;
+}
+
+.cheek {
+  position: absolute;
+  top: 183px;
+  width: 40px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ff849d;
+  filter: blur(10px);
+  opacity: .7;
+  z-index: 10;
+}
+
+.cheek.left { left: 14px; }
+.cheek.right { right: 14px; }
+
+.mouth {
+  position: absolute;
+  top: 213px;
+  left: 50%;
+  width: 42px;
+  height: 15px;
+  border-bottom: 3px solid #8e4359;
+  border-radius: 0 0 50% 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+}
+
+/* FLOATING 3D OBJECTS */
+
+.float-card {
+  position: absolute;
+  padding: 15px 19px;
+  background: linear-gradient(140deg, #29213fbb, #100d20dd);
+  border: 1px solid #aa83ff47;
+  border-radius: 12px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 15px 45px #0004, inset 0 0 20px #b179ff08;
+  color: #e6dcff;
+  font-family: monospace;
+  font-size: 13px;
+  animation: cardFloat 5s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+.float-card span { color: var(--pink); }
+
+.card-one {
+  top: 55px;
+  right: -2%;
+  transform: rotateY(-15deg) rotateZ(4deg);
+}
+
+.card-two {
+  bottom: 52px;
+  left: -7%;
+  animation-delay: -2s;
+  transform: rotateY(14deg) rotateZ(-5deg);
+}
+
+@keyframes cardFloat {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -13px; }
+}
+
+.cube {
+  position: absolute;
+  top: 43%;
+  right: -2%;
+  width: 53px;
+  height: 53px;
+  border-radius: 10px;
+  border: 1px solid #b56eff;
+  background: linear-gradient(135deg, #492875, #16132d);
+  box-shadow: 0 0 35px #9c4cff35;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: var(--pink);
+  animation: spinCube 8s linear infinite;
+}
+
+@keyframes spinCube {
+  to { transform: rotateY(360deg) rotateX(360deg); }
+}
+
+/* LOWER CONTENT */
+
+.section {
+  padding: 100px 7%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.section h2 {
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -1.5px;
+  margin-bottom: 15px;
+}
+
+.section > p {
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 620px;
+  margin-bottom: 35px;
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.skill {
+  padding: 25px;
+  background: var(--panel);
+  border: 1px solid #ffffff13;
+  border-radius: 15px;
+  transition: transform .25s, border-color .25s;
+  transform-style: preserve-3d;
+}
+
+.skill:hover {
+  border-color: #a35cff80;
+  transform: translateY(-6px) rotateX(3deg);
+}
+
+.skill .symbol {
+  font-size: 25px;
+  margin-bottom: 15px;
+}
+
+.skill h3 { margin-bottom: 8px; }
+.skill p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+footer {
+  padding: 30px 7%;
+  border-top: 1px solid #ffffff10;
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 850px) {
+  nav { padding: 0 5%; }
+  .nav-links { gap: 14px; }
+  .nav-links a { font-size: 12px; }
+
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 45px 7% 70px;
+  }
+
+  .intro { text-align: center; }
+  .description { margin: 22px auto; }
+  .tags { justify-content: center; }
+  h1 { letter-spacing: -3px; }
+
+  .character-stage {
+    height: 440px;
+    margin-top: 10px;
+  }
+
+  .character {
+    scale: .88;
+  }
+
+  .card-one { right: 0; }
+  .card-two { left: 0; }
+  .cube { right: 2%; }
+  .skill-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px) {
+  body, button { cursor: auto; }
+  #cursor { display: none; }
+  nav { height: 75px; }
+  .logo { font-size: 23px; }
+  .nav-links { gap: 10px; }
+  .nav-links a { font-size: 11px; }
+  .nav-status { display: none; }
+  .hero { padding-top: 35px; }
+  h1 { font-size: 51px; }
+  .character-stage { height: 390px; }
+  .character { scale: .76; }
+  .orbit { scale: .8; }
+  .float-card { font-size: 10px; padding: 11px; }
+  .card-one { top: 20px; }
+  .card-two { bottom: 20px; }
+  .skill-grid { grid-template-columns: 1fr; }
+  footer { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="scene">
+  <div class="grid"></div>
+  <div class="glow"></div>
+  <div class="glow two"></div>
+</div>
+
+<!-- Custom cursor -->
+<div id="cursor">
+  <div class="cursor-ring"></div>
+  <div class="cursor-ring second"></div>
+  <div class="cursor-core"></div>
+</div>
+
+<nav>
+  <a class="logo" href="#home">Niko<span>_</span></a>
+
+  <div class="nav-links">
+    <a href="#home">Home</a>
+    <a href="#about">About</a>
+    <a href="#skills">Skills</a>
+  </div>
+
+  <div class="nav-status">
+    <span class="status-dot"></span>
+    Building my world
+  </div>
+</nav>
+
+<main>
+<section class="hero" id="home">
+
+  <div class="intro">
+    <div class="eyebrow">// HELLO, WORLD_</div>
+
+    <h1>
+      Nihan<br>
+      a.k.a <span class="gradient-text">Niko</span>
+    </h1>
+
+    <p class="description">
+      Turning ideas into interactive digital experiences.
+      Exploring code, creativity, and the world of technology.
+    </p>
+
+    <div class="tags">
+      <span class="tag">Python</span>
+      <span class="tag">Java</span>
+      <span class="tag">Web Development</span>
+      <span class="tag">DBMS</span>
+      <span class="tag">Git & GitHub</span>
+    </div>
+
+    <a href="#about" class="cta">
+      Explore My World <span>↗</span>
+    </a>
+  </div>
+
+  <div class="character-stage" id="stage">
+
+    <div class="orbit"></div>
+    <div class="orbit two"></div>
+
+    <div class="float-card card-one">
+      <span>//</span> just a coder<br>
+      <span>//</span> building cool things<br>
+      <span>//</span> one idea at a time
+    </div>
+
+    <div class="float-card card-two">
+      <span>const</span> dream = "create";<br>
+      <span>while</span> (learning) { grow(); }
+    </div>
+
+    <div class="cube">&lt;/&gt;</div>
+
+    <!-- Character -->
+    <div class="character" id="character">
+
+      <div class="body-shape"></div>
+      <div class="neck"></div>
+      <div class="ear left"></div>
+      <div class="ear right"></div>
+
+      <div class="head">
+        <div class="brow left"></div>
+        <div class="brow right"></div>
+
+        <div class="eye" data-eye>
+          <div class="iris">
+            <div class="pupil"></div>
+            <div class="eye-shine"></div>
+            <div class="eye-shine small"></div>
+          </div>
+        </div>
+
+        <div class="eye right" data-eye>
+          <div class="iris">
+            <div class="pupil"></div>
+            <div class="eye-shine"></div>
+            <div class="eye-shine small"></div>
+          </div>
+        </div>
+
+        <div class="nose"></div>
+        <div class="cheek left"></div>
+        <div class="cheek right"></div>
+        <div class="mouth"></div>
+      </div>
+
+      <div class="hair"></div>
+
+    </div>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <div class="eyebrow">// BEHIND THE SCREEN</div>
+  <h2>Not just code.<br><span class="gradient-text">An imagination.</span></h2>
+  <p>
+    I enjoy learning how things work, solving problems, and turning
+    creative ideas into experiences people can interact with.
+    This little digital world is a playground for that curiosity.
+  </p>
+</section>
+
+<section class="section" id="skills">
+  <div class="eyebrow">// MY TOOLKIT</div>
+  <h2>Things I'm exploring.</h2>
+  <p>
+    Every skill starts with curiosity. These are some of the areas
+    I'm building my foundation in.
+  </p>
+
+  <div class="skill-grid">
+    <article class="skill">
+      <div class="symbol">🐍</div>
+      <h3>Python</h3>
+      <p>Logic, problem solving, and learning to build useful programs.</p>
+    </article>
+
+    <article class="skill">
+      <div class="symbol">☕</div>
+      <h3>Java</h3>
+      <p>Object-oriented thinking and understanding how programs work.</p>
+    </article>
+
+    <article class="skill">
+      <div class="symbol">🌐</div>
+      <h3>Web Development</h3>
+      <p>HTML, CSS, JavaScript, animation, and interactive experiences.</p>
+    </article>
+
+    <article class="skill">
+      <div class="symbol">▤</div>
+      <h3>DBMS</h3>
+      <p>Understanding how data is stored, organized, and managed.</p>
+    </article>
+
+    <article class="skill">
+      <div class="symbol">⌘</div>
+      <h3>Git & GitHub</h3>
+      <p>Version control and managing code as projects grow.</p>
+    </article>
+
+    <article class="skill">
+      <div class="symbol">✦</div>
+      <h3>Creative Building</h3>
+      <p>Experimenting with ideas and making the web feel alive.</p>
+    </article>
+  </div>
+</section>
+</main>
+
+<footer>
+  <span>© 2026 Niko_ — Built with curiosity.</span>
+  <span>Better Code // Better Tomorrow</span>
+</footer>
+
+<script>
+// ==========================================
+// 1. CUSTOM CURSOR + PIXEL PARTICLES
+// ==========================================
+
+const cursor = document.getElementById("cursor");
+
+let mouseX = innerWidth / 2;
+let mouseY = innerHeight / 2;
+
+let cursorX = mouseX;
+let cursorY = mouseY;
+
+let previousPixelTime = 0;
+
+window.addEventListener("pointermove", (event) => {
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+
+  const now = performance.now();
+
+  // Create pixels at intervals to avoid excessive elements
+  if (now - previousPixelTime > 22) {
+    createPixel(mouseX, mouseY);
+    previousPixelTime = now;
+  }
+});
+
+function createPixel(x, y) {
+  const pixel = document.createElement("div");
+  pixel.className = "cursor-trail";
+
+  const offsetX = (Math.random() - 0.5) * 28;
+  const offsetY = (Math.random() - 0.5) * 28;
+  const size = 3 + Math.random() * 8;
+
+  pixel.style.left = (x + offsetX) + "px";
+  pixel.style.top = (y + offsetY) + "px";
+  pixel.style.width = size + "px";
+  pixel.style.height = size + "px";
+
+  const colors = ["#ff36b7", "#9560ff", "#39baff", "#ffffff"];
+  pixel.style.background = colors[
+    Math.floor(Math.random() * colors.length)
+  ];
+
+  document.body.appendChild(pixel);
+
+  setTimeout(() => pixel.remove(), 700);
+}
+
+// Smooth cursor movement creates a subtle depth / lag effect
+function animateCursor() {
+  cursorX += (mouseX - cursorX) * 0.24;
+  cursorY += (mouseY - cursorY) * 0.24;
+
+  cursor.style.left = cursorX + "px";
+  cursor.style.top = cursorY + "px";
+
+  requestAnimationFrame(animateCursor);
+}
+
+animateCursor();
+
+
+// ==========================================
+// 2. BOTH EYES FOLLOW THE CURSOR
+// ==========================================
+
+const eyes = document.querySelectorAll("[data-eye]");
+
+function moveEyes() {
+  eyes.forEach((eye) => {
+    const iris = eye.querySelector(".iris");
+    const rect = eye.getBoundingClientRect();
+
+    const eyeCenterX = rect.left + rect.width / 2;
+    const eyeCenterY = rect.top + rect.height / 2;
+
+    const dx = mouseX - eyeCenterX;
+    const dy = mouseY - eyeCenterY;
+
+    // Direction toward the cursor
+    const angle = Math.atan2(dy, dx);
+
+    // Limit movement so the iris stays inside the eye
+    const maxX = 12;
+    const maxY = 8;
+
+    const distance = Math.min(
+      Math.sqrt(dx * dx + dy * dy),
+      500
+    );
+
+    const strength = distance / 500;
+
+    const moveX = Math.cos(angle) * maxX * strength;
+    const moveY = Math.sin(angle) * maxY * strength;
+
+    iris.style.left = `calc(50% + ${moveX}px)`;
+    iris.style.top = `calc(50% + ${moveY}px)`;
+  });
+
+  requestAnimationFrame(moveEyes);
+}
+
+moveEyes();
+
+
+// ==========================================
+// 3. CHARACTER PARALLAX / 3D DEPTH
+// ==========================================
+
+const character = document.getElementById("character");
+const stage = document.getElementById("stage");
+
+let targetRotateX = 0;
+let targetRotateY = 0;
+
+let currentRotateX = 0;
+let currentRotateY = 0;
+
+stage.addEventListener("pointermove", (event) => {
+  const rect = stage.getBoundingClientRect();
+
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+
+  targetRotateY = (x - 0.5) * 22;
+  targetRotateX = (0.5 - y) * 14;
+});
+
+stage.addEventListener("pointerleave", () => {
+  targetRotateX = 0;
+  targetRotateY = 0;
+});
+
+function animateCharacter() {
+  currentRotateX += (targetRotateX - currentRotateX) * 0.08;
+  currentRotateY += (targetRotateY - currentRotateY) * 0.08;
+
+  character.style.transform =
+    `rotateX(${currentRotateX}deg) rotateY(${currentRotateY}deg)`;
+
+  requestAnimationFrame(animateCharacter);
+}
+
+animateCharacter();
+
+
+// ==========================================
+// 4. BACKGROUND DEPTH PARALLAX
+// ==========================================
+
+const glow = document.querySelector(".glow");
+const secondGlow = document.querySelector(".glow.two");
+
+window.addEventListener("pointermove", (event) => {
+  const x = event.clientX / innerWidth - 0.5;
+  const y = event.clientY / innerHeight - 0.5;
+
+  glow.style.transform =
+    `translate(${x * 45}px, ${y * 35}px)`;
+
+  secondGlow.style.transform =
+    `translate(${x * -65}px, ${y * -45}px)`;
+});
+
+
+// ==========================================
+// 5. EYE BLINK
+// ==========================================
+
+function blink() {
+  eyes.forEach((eye) => {
+    eye.animate(
+      [
+        { transform: "scaleY(1)" },
+        { transform: "scaleY(0.08)" },
+        { transform: "scaleY(1)" }
+      ],
+      {
+        duration: 180,
+        easing: "ease-in-out"
+      }
+    );
+  });
+
+  // Random interval for a more natural effect
+  setTimeout(blink, 2500 + Math.random() * 3500);
+}
+
+setTimeout(blink, 2000);
+
+
+// ==========================================
+// 6. INTERACTIVE 3D TILT FOR SKILL CARDS
+// ==========================================
+
+document.querySelectorAll(".skill").forEach((card) => {
+  card.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") return;
+
+    const rect = card.getBoundingClientRect();
+
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+
+    const rotateY = (x - 0.5) * 10;
+    const rotateX = (0.5 - y) * 8;
+
+    card.style.transform =
+      `translateY(-6px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  });
+
+  card.addEventListener("pointerleave", () => {
+    card.style.transform = "";
+  });
+});
+
+
+// ==========================================
+// 7. REDUCE MOTION SUPPORT
+// ==========================================
+
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  document.querySelector(".character").style.animation = "none";
+}
+</script>
+
+</body>
+</html>
+
